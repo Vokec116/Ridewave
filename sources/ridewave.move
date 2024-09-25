@@ -294,19 +294,17 @@ module ridewave::ride_wave {
         blacklist.blacklisted_users.remove(user);
     }
 
-    // AI dynamic pricing model: Increase price based on current demand and availability
     public fun dynamic_pricing(
         base_price: u64,
         demand_factor: u8,
         ride_availability: u64,
     ) : u64 {
-        // Simulate AI behavior: Raise price if demand is high and rides are less available
+        
         let surge_multiplier = (1 + (demand_factor as u64) / 10) * (1 + 100 / (ride_availability + 1));
 
         base_price * surge_multiplier
     }
 
-    // AI-based ETA prediction using linear regression with distance and traffic factor
     public fun predict_eta(
         distance: u64,
         traffic_factor: u8,
@@ -316,7 +314,6 @@ module ridewave::ride_wave {
         base_eta + traffic_delay
     }
 
-    // AI-based anomaly detection: Flag unusual ride requests (sudden large amount of rides)
     public fun detect_fraud(
         ride_count: u64,
         last_week_ride_count: u64,
