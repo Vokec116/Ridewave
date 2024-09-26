@@ -18,6 +18,13 @@ module ridewave::ride_wave {
     const Error_NotAuthorized: u64 = 0;
     const Error_Invalid_User: u64 = 10;
 
+    // Enum for supported currencies
+    public enum Currency has copy, drop, store {
+        KSH,  // Kenyan Shilling
+        USD,  // US Dollar
+        SUI   // SUI token (native currency)
+    }
+
     // User struct definition
     public struct User has key, store {
         id: UID,
@@ -36,6 +43,7 @@ module ridewave::ride_wave {
         price: u64,
         is_available: bool,
         balance: Balance<SUI>,
+        currency: Currency, // Added currency field
     }
 
     public struct RideCap has key {
@@ -86,6 +94,15 @@ module ridewave::ride_wave {
         recipient: address,
     }
 
+    // Function to convert amounts to SUI based on currency
+    public fun convert_to_sui(amount: u64, currency: &Currency): u64 {
+        match (*currency) {
+            Currency::KSH => amount / 100, // Example conversion
+            Currency::USD => amount * 100,  // Example conversion
+            Currency::SUI => amount,
+        }
+    }
+
     // Register user function
     public fun register_user(
         username: String,
@@ -106,6 +123,7 @@ module ridewave::ride_wave {
         driver: address,
         vehicle_details: String,
         price: u64,
+        currency: Currency, // Accept currency as parameter
         ctx: &mut TxContext
     ) {
         assert!(price > 0, Error_Invalid_Price);
@@ -122,6 +140,7 @@ module ridewave::ride_wave {
             price: price,
             is_available: true,
             balance: zero<SUI>(),
+            currency: currency, // Set currency for the ride
         };
 
         let cap = RideCap {
@@ -191,7 +210,7 @@ module ridewave::ride_wave {
         assert!(request.status == 1, Error_ServiceNotListed);
         assert!(payment_coin.value() >= ride.price, Error_Insufficient_Payment);
 
-        let total_price = ride.price;
+        let total_price = convert_to_sui(ride.price, &ride.currency); // Convert price to SUI
         let paid = split(payment_coin, total_price, ctx);
         put(&mut ride.balance, paid);
         request.status = 2;
@@ -320,5 +339,10 @@ module ridewave::ride_wave {
     ) : bool {
         (ride_count > last_week_ride_count * 2)  // Flag if rides doubled suddenly
     }
-}
 
+    // Function to copy the currency and convert amount
+    public fun copy_currency(amount: u64, currency: &Currency): (u64, Currency) {
+        let converted_amount = convert_to_sui(amount, currency);
+        (converted_amount, *currency)  // Now valid with the copy ability
+    }
+}
