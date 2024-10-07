@@ -6,7 +6,6 @@ module ridewave::ride_wave {
     use sui::coin::{Coin, value, split, put, take};
     use sui::object::new;
     use sui::balance::{Balance, zero, value as balance_value};
-    use sui::tx_context::sender;
     use sui::table::{Self, Table};
 
     // Constants for error codes
@@ -148,7 +147,7 @@ module ridewave::ride_wave {
             `for`: ride_id,
         };
 
-        transfer::transfer(cap, sender(ctx));
+        transfer::transfer(cap, ctx.sender());
         transfer::share_object(ride);
 
         event::emit(RideCreated {
@@ -184,10 +183,12 @@ module ridewave::ride_wave {
 
     // Function to accept a ride request
     public fun accept_ride_request(
+        cap: &RideCap,
         ride: &mut Ride,
         request: &mut RideRequest,
         ctx: &mut TxContext
     ) {
+        assert!(object::id(ride) == cap.`for`, Error_NotAuthorized);
         assert!(ride.is_available, Error_NoAvailableVehicles);
         assert!(request.status == 0, Error_ServiceNotListed);
 
@@ -204,15 +205,15 @@ module ridewave::ride_wave {
     public fun complete_ride(
         ride: &mut Ride,
         request: &mut RideRequest,
-        payment_coin: &mut Coin<SUI>,
+        payment_coin: Coin<SUI>,
         ctx: &mut TxContext
     ) {
+        assert!(ctx.sender() == request.passenger, Error_Invalid_User);
         assert!(request.status == 1, Error_ServiceNotListed);
         assert!(payment_coin.value() >= ride.price, Error_Insufficient_Payment);
 
         let total_price = convert_to_sui(ride.price, &ride.currency); // Convert price to SUI
-        let paid = split(payment_coin, total_price, ctx);
-        put(&mut ride.balance, paid);
+        put(&mut ride.balance, payment_coin);
         request.status = 2;
 
         event::emit(RideCompleted {
@@ -230,11 +231,11 @@ module ridewave::ride_wave {
     ) {
         assert!(object::id(ride) == cap.`for`, Error_NotAuthorized);
         let remaining = take(&mut ride.balance, amount, ctx);
-        transfer::public_transfer(remaining, sender(ctx));
+        transfer::public_transfer(remaining, ctx.sender());
 
         event::emit(FundsWithdrawn {
             amount: amount,
-            recipient: sender(ctx),
+            recipient: ctx.sender(),
         });
     }
 
@@ -344,5 +345,10 @@ module ridewave::ride_wave {
     public fun copy_currency(amount: u64, currency: &Currency): (u64, Currency) {
         let converted_amount = convert_to_sui(amount, currency);
         (converted_amount, *currency)  // Now valid with the copy ability
+    }
+
+     #[test_only]
+    public fun get_ksh(): Currency {
+        Currency::KSH
     }
 }
