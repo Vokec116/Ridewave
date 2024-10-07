@@ -6,7 +6,6 @@ module ridewave::ride_wave {
     use sui::coin::{Coin, value, split, put, take};
     use sui::object::new;
     use sui::balance::{Balance, zero, value as balance_value};
-    use sui::tx_context::sender;
     use sui::table::{Self, Table};
 
     // Constants for error codes
@@ -148,7 +147,7 @@ module ridewave::ride_wave {
             `for`: ride_id,
         };
 
-        transfer::transfer(cap, sender(ctx));
+        transfer::transfer(cap, ctx.sender());
         transfer::share_object(ride);
 
         event::emit(RideCreated {
@@ -230,11 +229,11 @@ module ridewave::ride_wave {
     ) {
         assert!(object::id(ride) == cap.`for`, Error_NotAuthorized);
         let remaining = take(&mut ride.balance, amount, ctx);
-        transfer::public_transfer(remaining, sender(ctx));
+        transfer::public_transfer(remaining, ctx.sender());
 
         event::emit(FundsWithdrawn {
             amount: amount,
-            recipient: sender(ctx),
+            recipient: ctx.sender(),
         });
     }
 
